@@ -32,19 +32,27 @@ class ArticleDetailViewController: UIViewController {
         setupConstraints()
         configureWithArticle()
         loadArticleContent()
+        updateSaveButton()
     }
     
     private func setupUI() {
         view.backgroundColor = .systemBackground
         navigationItem.largeTitleDisplayMode = .never
         
+        saveButton = UIBarButtonItem(
+            image: UIImage(systemName: "bookmark"),
+            style: .plain,
+            target: self,
+            action: #selector(saveButtonTapped)
+        )
+        
+        navigationItem.rightBarButtonItems = [saveButton]
         
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsVerticalScrollIndicator = true
         
         contentView.translatesAutoresizingMaskIntoConstraints = false
-        
-        
+
         webView.navigationDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -127,6 +135,26 @@ class ArticleDetailViewController: UIViewController {
         webView.load(request)
     }
     
+    private func updateSaveButton() {
+        let isSaved = CoreDataManager.shared.isArticleSaved(article)
+        saveButton.image = UIImage(systemName: isSaved ? "bookmark.fill" : "bookmark")
+        saveButton.tintColor = isSaved ? .systemYellow : .systemBlue
+    }
+    
+    @objc private func saveButtonTapped() {
+        let isCurrentlySaved = CoreDataManager.shared.isArticleSaved(article)
+        
+        if isCurrentlySaved {
+            CoreDataManager.shared.deleteArticle(article)
+            showToast(message: "The article has been removed from saved")
+        } else {
+            if CoreDataManager.shared.saveArticle(article) {
+                showToast(message: "Article saved")
+            }
+        }
+        
+        updateSaveButton()
+    }
     
     private func showToast(message: String) {
         let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
