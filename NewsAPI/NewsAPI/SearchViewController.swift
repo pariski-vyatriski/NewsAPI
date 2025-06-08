@@ -167,4 +167,14 @@ extension SearchViewController: UITableViewDataSource, UITableViewDelegate {
         cell.configure(with: articles[indexPath.row])
         return cell
     }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        openArticle(articles[indexPath.row])
+    }
+    
+    private func openArticle(_ article: Article) {
+        let detailVC = ArticleDetailViewController(article: article)
+        navigationController?.pushViewController(detailVC, animated: true)
+    }
 }
