@@ -1,54 +1,74 @@
 import UIKit
+
 class NewsTableViewCell: UITableViewCell {
-    
     private let titleLabel = UILabel()
     private let sourceLabel = UILabel()
     private let descriptionLabel = UILabel()
     private let dateLabel = UILabel()
     private let newsImageView = UIImageView()
+    private var imageTask: URLSessionDataTask?
+    private var currentImageURL: URL?
+    private let placeholderImage = UIImage(systemName: "photo")
+    private var isInitialized = false
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
-        setupUI()
-        setupConstraints()
+        initializeCell()
     }
     
     required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        super.init(coder: coder)
+        initializeCell()
+    }
+    
+    private func initializeCell() {
+        guard !isInitialized else { return }
+        
+        if Thread.isMainThread {
+            setupUI()
+            setupConstraints()
+            isInitialized = true
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.setupUI()
+                self?.setupConstraints()
+                self?.isInitialized = true
+            }
+        }
     }
     
     private func setupUI() {
+        assert(Thread.isMainThread, "UI setup must be on main thread")
+        
         titleLabel.font = UIFont.boldSystemFont(ofSize: 16)
         titleLabel.numberOfLines = 2
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        sourceLabel.font = UIFont.systemFont(ofSize: 12)
-        sourceLabel.textColor = .systemBlue
-        sourceLabel.translatesAutoresizingMaskIntoConstraints = false
+        sourceLabel.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        sourceLabel.textColor = .secondaryLabel
         
         descriptionLabel.font = UIFont.systemFont(ofSize: 14)
         descriptionLabel.textColor = .secondaryLabel
         descriptionLabel.numberOfLines = 3
-        descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
         
         dateLabel.font = UIFont.systemFont(ofSize: 12)
         dateLabel.textColor = .tertiaryLabel
-        dateLabel.translatesAutoresizingMaskIntoConstraints = false
         
         newsImageView.contentMode = .scaleAspectFill
         newsImageView.clipsToBounds = true
         newsImageView.layer.cornerRadius = 8
-        newsImageView.backgroundColor = .systemGray5
-        newsImageView.translatesAutoresizingMaskIntoConstraints = false
+        newsImageView.backgroundColor = .white
+        newsImageView.image = placeholderImage
+        newsImageView.tintColor = .backBlue
         
-        contentView.addSubview(titleLabel)
-        contentView.addSubview(sourceLabel)
-        contentView.addSubview(descriptionLabel)
-        contentView.addSubview(dateLabel)
-        contentView.addSubview(newsImageView)
+        [titleLabel, sourceLabel, descriptionLabel, dateLabel, newsImageView].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview($0)
+        }
     }
     
     private func setupConstraints() {
+        assert(Thread.isMainThread, "Constraints must be set on main thread")
+        
         NSLayoutConstraint.activate([
             newsImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             newsImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
@@ -76,47 +96,61 @@ class NewsTableViewCell: UITableViewCell {
         ])
     }
     
-    func configure(with article: Article) {
-        titleLabel.text = article.title
-        sourceLabel.text = article.source.name
-        descriptionLabel.text = article.description ?? "Описание недоступно"
-        
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: article.publishedAt) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .medium
-            displayFormatter.timeStyle = .short
-            displayFormatter.locale = Locale(identifier: "ru_RU")
-            dateLabel.text = displayFormatter.string(from: date)
-        } else {
-            dateLabel.text = ""
-        }
-        
-        if let imageUrl = article.urlToImage, let url = URL(string: imageUrl) {
-            loadImage(from: url)
-        } else {
-            newsImageView.image = UIImage(systemName: "photo")
+    func configure(with viewModel: NewsCellViewModel) {
+        DispatchQueue.main.async { [weak self] in
+            self?.updateContent(with: viewModel)
         }
     }
     
-    private func loadImage(from url: URL) {
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-            guard let data = data, let image = UIImage(data: data) else {
-                DispatchQueue.main.async {
-                    self?.newsImageView.image = UIImage(systemName: "photo")
-                }
+    private func updateContent(with viewModel: NewsCellViewModel) {
+        titleLabel.text = viewModel.title
+        sourceLabel.text = viewModel.source
+        dateLabel.text = viewModel.date
+        descriptionLabel.text = viewModel.description
+        
+        loadImageIfNeeded(from: viewModel.imageURL)
+    }
+    
+    private func loadImageIfNeeded(from url: URL?) {
+        guard currentImageURL != url else { return }
+        
+        imageTask?.cancel()
+        currentImageURL = url
+        
+        newsImageView.image = placeholderImage
+        
+        guard let url = url else { return }
+        
+        imageTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            if let error = error as? URLError, error.code == .cancelled {
                 return
             }
             
+            let image = data.flatMap { UIImage(data: $0) } ?? self?.placeholderImage
+            
             DispatchQueue.main.async {
+                guard self?.currentImageURL == url else { return }
                 self?.newsImageView.image = image
             }
-        }.resume()
+        }
+        
+        imageTask?.resume()
     }
     
     override func prepareForReuse() {
         super.prepareForReuse()
-        newsImageView.image = UIImage(systemName: "photo")
+        
+        imageTask?.cancel()
+        imageTask = nil
+        currentImageURL = nil
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.resetContent()
+        }
+    }
+    
+    private func resetContent() {
+        newsImageView.image = placeholderImage
         titleLabel.text = nil
         sourceLabel.text = nil
         descriptionLabel.text = nil

@@ -1,6 +1,5 @@
-import WebKit
-import CoreData
 import UIKit
+import WebKit
 
 class ArticleDetailViewController: UIViewController {
     
@@ -13,12 +12,11 @@ class ArticleDetailViewController: UIViewController {
     private let descriptionLabel = UILabel()
     private let webView = WKWebView()
     private let activityIndicator = UIActivityIndicatorView(style: .large)
-    
-    private let article: Article
+    private let viewModel: ArticleDetailViewModel
     private var saveButton: UIBarButtonItem!
     
-    init(article: Article) {
-        self.article = article
+    init(viewModel: ArticleDetailViewModel) {
+        self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -30,9 +28,9 @@ class ArticleDetailViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupConstraints()
+        bindViewModel()
         configureWithArticle()
         loadArticleContent()
-        updateSaveButton()
     }
     
     private func setupUI() {
@@ -95,24 +93,26 @@ class ArticleDetailViewController: UIViewController {
         ])
     }
     
-    private func configureWithArticle() {
-        titleLabel.text = article.title
-        sourceLabel.text = article.source.name
-        descriptionLabel.text = article.description ?? "Описание недоступно"
-        
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: article.publishedAt) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .long
-            displayFormatter.timeStyle = .short
-            displayFormatter.locale = Locale(identifier: "ru_RU")
-            dateLabel.text = displayFormatter.string(from: date)
-        } else {
-            dateLabel.text = ""
+    private func bindViewModel() {
+        viewModel.isArticleSaved.bind { [weak self] isSaved in
+            self?.updateSaveButton(isSaved: isSaved)
         }
         
-        if let imageUrl = article.urlToImage, let url = URL(string: imageUrl) {
-            loadImage(from: url)
+        viewModel.toastMessage.bind { [weak self] message in
+            guard let message = message else { return }
+            self?.showToast(message: message)
+        }
+    }
+    
+    private func configureWithArticle() {
+        let article = viewModel.getArticle()
+        titleLabel.text = article.title
+        sourceLabel.text = article.source.name
+        descriptionLabel.text = article.description ?? "Description not available"
+        dateLabel.text = viewModel.getFormattedDate()
+        
+        if let imageUrl = viewModel.getImageURL() {
+            loadImage(from: imageUrl)
         } else {
             articleImageView.image = UIImage(systemName: "photo")
         }
@@ -128,32 +128,26 @@ class ArticleDetailViewController: UIViewController {
     }
     
     private func loadArticleContent() {
-        guard let url = URL(string: article.url) else { return }
+        guard let url = viewModel.getArticleURL() else { return }
         
         activityIndicator.startAnimating()
         let request = URLRequest(url: url)
         webView.load(request)
     }
     
-    private func updateSaveButton() {
-        let isSaved = CoreDataManager.shared.isArticleSaved(article)
+    private func updateSaveButton(isSaved: Bool) {
         saveButton.image = UIImage(systemName: isSaved ? "bookmark.fill" : "bookmark")
-        saveButton.tintColor = isSaved ? .systemYellow : .systemBlue
+        saveButton.tintColor = isSaved ? .systemYellow : .systemGray
     }
     
     @objc private func saveButtonTapped() {
-        let isCurrentlySaved = CoreDataManager.shared.isArticleSaved(article)
+        viewModel.toggleSaveStatus()
         
-        if isCurrentlySaved {
-            CoreDataManager.shared.deleteArticle(article)
-            showToast(message: "The article has been removed from saved")
-        } else {
-            if CoreDataManager.shared.saveArticle(article) {
-                showToast(message: "Article saved")
-            }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let isSaved = CoreDataManager.shared.isArticleSaved(self.viewModel.getArticle())
+            print("Checking the save:\(isSaved ? "successfully" : "failed")")
+            self.updateSaveButton(isSaved: isSaved)
         }
-        
-        updateSaveButton()
     }
     
     private func showToast(message: String) {
@@ -175,3 +169,4 @@ extension ArticleDetailViewController: WKNavigationDelegate {
         activityIndicator.stopAnimating()
     }
 }
+

@@ -10,27 +10,37 @@ class MainTabBarController: UITabBarController {
     }
     
     func setupTabBar() {
+        let dependencyContainer = DependencyContainer()
+        
+        let searchNav = UINavigationController()
+        
+        let coordinator = SearchCoordinator(navigationController: searchNav, dependencyContainer: dependencyContainer)
+        
+        let viewModel = dependencyContainer.makeSearchViewModel()
 
-        let searchVC = SearchViewController()
-        let favoritesVC = SavedArticlesViewController()
+        let searchVC = SearchViewController(viewModel: viewModel, coordinator: coordinator)
         
-        let searchNav = UINavigationController(rootViewController: searchVC)
-        let favoritesNav = UINavigationController(rootViewController: favoritesVC)
-        
+        searchNav.viewControllers = [searchVC]
+    
+        let favoritesNav = UINavigationController()
+        let savedCoordinator = SavedArticlesCoordinator(navigationController: favoritesNav)
+
+        let savedViewModel = dependencyContainer.makeSavedArticlesViewModel()
+        let favoritesVC = SavedArticlesViewController(viewModel: savedViewModel, coordinator: savedCoordinator)
+        favoritesNav.viewControllers = [favoritesVC]
+
         searchNav.tabBarItem = UITabBarItem(
             title: "News",
             image: UIImage(systemName: "newspaper"),
             selectedImage: UIImage(systemName: "newspaper.fill")
         )
-        
         favoritesNav.tabBarItem = UITabBarItem(
             title: "Bookmarks",
             image: UIImage(systemName: "bookmark"),
             selectedImage: UIImage(systemName: "bookmark.fill")
         )
-    
         viewControllers = [searchNav, favoritesNav]
-        
+
         setupTabBarAppearance()
     }
     

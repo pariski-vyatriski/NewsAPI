@@ -1,4 +1,5 @@
 import UIKit
+import WebKit
 
 class SearchViewController: UIViewController {
     
@@ -14,33 +15,36 @@ class SearchViewController: UIViewController {
     
     private let tableView = UITableView()
     private let activityIndicator = UIActivityIndicatorView(style: .large)
-    private var articles: [Article] = []
     
-    private let categories = [
-        ("All", ""),
-        ("Technology", "technology"),
-        ("Politics", "politics"),
-        ("Sport", "sports")
-    ]
+    private let viewModel: SearchViewModel
+    private let coordinator: SearchCoordinatorProtocol
+    
+    init(viewModel: SearchViewModel, coordinator: SearchCoordinatorProtocol) {
+        self.viewModel = viewModel
+        self.coordinator = coordinator
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        title = "News"
         setupUI()
         setupConstraints()
-        loadDefaultNews()
+        bindViewModel()
+        viewModel.loadDefaultNews()
         
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .automatic
-        extendedLayoutIncludesOpaqueBars = true
-        tableView.contentInsetAdjustmentBehavior = .automatic
-        
     }
     
     private func setupUI() {
-
-        navigationController?.navigationBar.largeTitleTextAttributes = [.foregroundColor: UIColor.lightBlue]
+        view.backgroundColor = .systemBackground
+        title = "News"
+        
+        navigationController?.navigationBar.largeTitleTextAttributes = [.foregroundColor: UIColor.systemBlue]
         
         tabsCollectionView.delegate = self
         tabsCollectionView.dataSource = self
@@ -52,9 +56,6 @@ class SearchViewController: UIViewController {
         tableView.register(NewsTableViewCell.self, forCellReuseIdentifier: "NewsCell")
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 120
-        
-        activityIndicator.hidesWhenStopped = true
-        activityIndicator.color = .systemPink
         
         view.addSubview(tabsCollectionView)
         view.addSubview(tableView)
@@ -82,32 +83,28 @@ class SearchViewController: UIViewController {
         ])
     }
     
-    private func loadDefaultNews() {
-        searchNews(query: "news")
-    }
-    
-    private func searchNews(query: String) {
-        activityIndicator.startAnimating()
-        
-        NewsManager.shared.fetchNews(query: query) { [weak self] result in
+    private func bindViewModel() {
+        viewModel.articles.bind { [weak self] _ in
             DispatchQueue.main.async {
-                self?.activityIndicator.stopAnimating()
-                
-                switch result {
-                case .success(let articles):
-                    self?.articles = articles
-                    self?.tableView.reloadData()
-                case .failure(let error):
-                    self?.showError(error)
-                }
+                self?.tableView.reloadData()
             }
+        }
+        
+        viewModel.error.bind { [weak self] error in
+            guard let error = error else { return }
+            self?.showError(error)
+        }
+        
+        viewModel.selectedCategoryIndex.bind { [weak self] index in
+            let indexPath = IndexPath(item: index, section: 0)
+            self?.tabsCollectionView.selectItem(at: indexPath, animated: true, scrollPosition: .centeredHorizontally)
         }
     }
     
-    private func showError(_ error: Error) {
+    private func showError(_ message: String) {
         let alert = UIAlertController(
-            title: "Ошибка",
-            message: error.localizedDescription,
+            title: "Error",
+            message: message,
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -115,37 +112,30 @@ class SearchViewController: UIViewController {
     }
 }
 
+
 extension SearchViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return categories.count
+        return viewModel.getCategoriesCount()
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "TabCell", for: indexPath) as! TabCell
-        cell.titleLabel.text = categories[indexPath.item].0
+        let category = viewModel.getCategory(at: indexPath.item)
+        cell.configure(with: category.0)
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let category = viewModel.getCategory(at: indexPath.item)
         let label = UILabel()
-        label.text = categories[indexPath.item].0
+        label.text = category.0
         label.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         label.sizeToFit()
         return CGSize(width: label.frame.width + 32, height: 44)
     }
     
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
-            return 0
-        }
-    
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        let query = categories[indexPath.item].1
-        if query.isEmpty {
-            loadDefaultNews()
-        } else {
-            searchNews(query: query)
-        }
+        viewModel.selectCategory(at: indexPath.item)
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
@@ -155,26 +145,28 @@ extension SearchViewController: UICollectionViewDataSource, UICollectionViewDele
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
         return 16
     }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
+        return 0
+    }
 }
 
 extension SearchViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return articles.count
+        return viewModel.articles.value.count
     }
-    
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "NewsCell", for: indexPath) as! NewsTableViewCell
-        cell.configure(with: articles[indexPath.row])
+        let article = viewModel.getArticle(at: indexPath.row)
+        let cellViewModel = NewsCellViewModel(article: article)
+        cell.configure(with: cellViewModel)
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        openArticle(articles[indexPath.row])
-    }
-    
-    private func openArticle(_ article: Article) {
-        let detailVC = ArticleDetailViewController(article: article)
-        navigationController?.pushViewController(detailVC, animated: true)
+        let article = viewModel.getArticle(at: indexPath.row)
+        coordinator.showArticleDetail(article: article)
     }
 }

@@ -5,7 +5,6 @@ class TabCell: UICollectionViewCell {
         let label = UILabel()
         label.textAlignment = .center
         label.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        label.textColor = .green
         return label
     }()
     
@@ -13,7 +12,7 @@ class TabCell: UICollectionViewCell {
     
     override var isSelected: Bool {
         didSet {
-            titleLabel.textColor = isSelected ? .lightBlue : .backBlue
+            titleLabel.textColor = isSelected ? .systemBlue : .systemGray
             bottomLine.isHidden = !isSelected
         }
     }
@@ -23,11 +22,15 @@ class TabCell: UICollectionViewCell {
         setupUI()
     }
     
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     private func setupUI() {
-        titleLabel.textColor = .backBlue
+        titleLabel.textColor = .systemGray
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        bottomLine.backgroundColor = .lightBlue
+        bottomLine.backgroundColor = .systemBlue
         bottomLine.isHidden = true
         bottomLine.translatesAutoresizingMaskIntoConstraints = false
         
@@ -45,7 +48,8 @@ class TabCell: UICollectionViewCell {
         ])
     }
     
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    func configure(with title: String) {
+        titleLabel.text = title
     }
 }
+
