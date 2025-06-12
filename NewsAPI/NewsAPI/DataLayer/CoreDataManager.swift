@@ -43,7 +43,7 @@ class CoreDataManager {
     
     func deleteArticle(_ article: Article) -> Bool {
         let request: NSFetchRequest<SavedArticle> = SavedArticle.fetchRequest()
-        request.predicate = NSPredicate(format: "url == %@", article.url ?? "")
+        request.predicate = NSPredicate(format: "url == %@", article.url)
         
         do {
             let savedArticles = try context.fetch(request)
@@ -61,7 +61,7 @@ class CoreDataManager {
     
     func isArticleSaved(_ article: Article) -> Bool {
         let request: NSFetchRequest<SavedArticle> = SavedArticle.fetchRequest()
-        request.predicate = NSPredicate(format: "url == %@", article.url ?? "")
+        request.predicate = NSPredicate(format: "url == %@", article.url)
         
         do {
             let count = try context.count(for: request)

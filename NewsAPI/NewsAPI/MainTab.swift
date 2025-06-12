@@ -38,6 +38,7 @@ class MainTabBarController: UITabBarController {
             title: "Bookmarks",
             image: UIImage(systemName: "bookmark"),
             selectedImage: UIImage(systemName: "bookmark.fill")
+            
         )
         viewControllers = [searchNav, favoritesNav]
 
@@ -45,18 +46,18 @@ class MainTabBarController: UITabBarController {
     }
     
     func setupTabBarAppearance() {
-        tabBar.tintColor = .white
-        tabBar.unselectedItemTintColor = .gray
-        tabBar.barTintColor = .darkBlue
-        
-        if #available(iOS 15.0, *) {
-            let appearance = UITabBarAppearance()
-            appearance.backgroundColor = .darkBlue
-            appearance.shadowColor = .systemGray4
-            
-            tabBar.standardAppearance = appearance
-            tabBar.scrollEdgeAppearance = appearance
-        }
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = .darkBlue
+
+        appearance.stackedLayoutAppearance.selected.iconColor = .white
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.white]
+        appearance.stackedLayoutAppearance.normal.iconColor = .textUnmarked
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.textUnmarked]
+
+        tabBar.standardAppearance = appearance
+        tabBar.scrollEdgeAppearance = appearance
     }
+
 }
 
