@@ -32,9 +32,12 @@ class SearchViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        view.addSubview(errorView)
         setupConstraints()
         bindViewModel()
         viewModel.loadDefaultNews()
+        
+        errorView.translatesAutoresizingMaskIntoConstraints = false
         
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .automatic
@@ -79,36 +82,83 @@ class SearchViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            
+            errorView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            errorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            errorView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            errorView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
     
     private func bindViewModel() {
         viewModel.articles.bind { [weak self] _ in
             DispatchQueue.main.async {
+                self?.errorView.isHidden = true
                 self?.tableView.reloadData()
             }
         }
         
         viewModel.error.bind { [weak self] error in
-            guard let error = error else { return }
-            self?.showError(error)
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.showError(error)
+                } else {
+                    self?.errorView.isHidden = true
+                }
+            }
         }
         
-        viewModel.selectedCategoryIndex.bind { [weak self] index in
-            let indexPath = IndexPath(item: index, section: 0)
-            self?.tabsCollectionView.selectItem(at: indexPath, animated: true, scrollPosition: .centeredHorizontally)
-        }
     }
     
     private func showError(_ message: String) {
-        let alert = UIAlertController(
-            title: "Error",
-            message: message,
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+        DispatchQueue.main.async {
+            if let label = self.errorView.viewWithTag(100) as? UILabel {
+                label.text = message
+            }
+            self.errorView.isHidden = false
+            self.activityIndicator.stopAnimating()
+        }
+    }
+    
+    
+    private let errorView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor.systemBackground
+        view.isHidden = true
+        
+        let label = UILabel()
+        label.tag = 100
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.textColor = .darkBlue
+        label.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(label)
+        
+        let button = UIButton(type: .system)
+        button.setTitle("Try again", for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(button)
+        
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -16),
+            
+            button.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 16),
+            button.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+        ])
+        
+        button.addTarget(nil, action: #selector(retryButtonTapped), for: .touchUpInside)
+        
+        return view
+    }()
+    
+    @objc private func retryButtonTapped() {
+        errorView.isHidden = true
+        viewModel.loadDefaultNews()
     }
 }
 
@@ -155,7 +205,7 @@ extension SearchViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return viewModel.articles.value.count
     }
-
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "NewsCell", for: indexPath) as! NewsTableViewCell
         let article = viewModel.getArticle(at: indexPath.row)
