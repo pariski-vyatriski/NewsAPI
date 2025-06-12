@@ -15,6 +15,9 @@ class ArticleDetailViewController: UIViewController {
     private let viewModel: ArticleDetailViewModel
     private var saveButton: UIBarButtonItem!
     
+    private let stackView = UIStackView()
+    private let infoContainer = UIView()
+    
     init(viewModel: ArticleDetailViewModel) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
@@ -36,36 +39,54 @@ class ArticleDetailViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemBackground
         navigationItem.largeTitleDisplayMode = .never
-        
+
         saveButton = UIBarButtonItem(
             image: UIImage(systemName: "bookmark"),
             style: .plain,
             target: self,
             action: #selector(saveButtonTapped)
         )
-        
         navigationItem.rightBarButtonItems = [saveButton]
-        
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsVerticalScrollIndicator = true
-        
+        view.addSubview(scrollView)
+
         contentView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentView)
+
+        stackView.axis = .vertical
+        stackView.spacing = 12
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stackView)
+
+        infoContainer.translatesAutoresizingMaskIntoConstraints = false
+        stackView.addArrangedSubview(infoContainer)
+
+        infoContainer.addSubview(articleImageView)
+
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 20)
+        titleLabel.numberOfLines = 0
+        infoContainer.addSubview(titleLabel)
+
+        sourceLabel.translatesAutoresizingMaskIntoConstraints = false
+        sourceLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        sourceLabel.textColor = .secondaryLabel
+        infoContainer.addSubview(sourceLabel)
+
+        dateLabel.translatesAutoresizingMaskIntoConstraints = false
+        dateLabel.font = UIFont.systemFont(ofSize: 12)
+        dateLabel.textColor = .tertiaryLabel
+        infoContainer.addSubview(dateLabel)
+
 
         webView.navigationDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
-        
+        stackView.addArrangedSubview(webView)
+
         activityIndicator.hidesWhenStopped = true
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
-        
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
-        
-        contentView.addSubview(articleImageView)
-        contentView.addSubview(titleLabel)
-        contentView.addSubview(sourceLabel)
-        contentView.addSubview(dateLabel)
-        contentView.addSubview(descriptionLabel)
-        contentView.addSubview(webView)
         contentView.addSubview(activityIndicator)
     }
     
@@ -75,24 +96,45 @@ class ArticleDetailViewController: UIViewController {
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
+
             contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            
-            webView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            webView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            webView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.heightAnchor),
-            
+
+            stackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
+
+            articleImageView.topAnchor.constraint(equalTo: infoContainer.topAnchor),
+            articleImageView.leadingAnchor.constraint(equalTo: infoContainer.leadingAnchor),
+            articleImageView.widthAnchor.constraint(equalToConstant: 100),
+            articleImageView.heightAnchor.constraint(equalToConstant: 100),
+
+            titleLabel.topAnchor.constraint(equalTo: infoContainer.topAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: articleImageView.trailingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: infoContainer.trailingAnchor),
+
+            sourceLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            sourceLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            sourceLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+
+            dateLabel.topAnchor.constraint(equalTo: sourceLabel.bottomAnchor, constant: 4),
+            dateLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            dateLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            dateLabel.bottomAnchor.constraint(equalTo: infoContainer.bottomAnchor),
+
+            webView.heightAnchor.constraint(equalToConstant: 600),
+
             activityIndicator.centerXAnchor.constraint(equalTo: webView.centerXAnchor),
-            activityIndicator.centerYAnchor.constraint(equalTo: webView.centerYAnchor)
+            activityIndicator.centerYAnchor.constraint(equalTo: webView.centerYAnchor),
+
+            contentView.heightAnchor.constraint(equalTo: stackView.heightAnchor)
         ])
     }
-    
+
     private func bindViewModel() {
         viewModel.isArticleSaved.bind { [weak self] isSaved in
             self?.updateSaveButton(isSaved: isSaved)
@@ -137,7 +179,7 @@ class ArticleDetailViewController: UIViewController {
     
     private func updateSaveButton(isSaved: Bool) {
         saveButton.image = UIImage(systemName: isSaved ? "bookmark.fill" : "bookmark")
-        saveButton.tintColor = isSaved ? .systemYellow : .systemGray
+        saveButton.tintColor = isSaved ? .systemYellow : .textUnmarked
     }
     
     @objc private func saveButtonTapped() {
@@ -169,4 +211,3 @@ extension ArticleDetailViewController: WKNavigationDelegate {
         activityIndicator.stopAnimating()
     }
 }
-

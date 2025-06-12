@@ -1,6 +1,7 @@
 import UIKit
 
 class TabCell: UICollectionViewCell {
+    
     let titleLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
