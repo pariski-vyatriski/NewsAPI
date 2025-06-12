@@ -7,8 +7,8 @@ protocol NewsAPIServiceProtocol {
 
 class NewsAPIService: NewsAPIServiceProtocol {
     private let networkService: NetworkServiceProtocol
-    private let apiKey = "03a08255e08b4db780fc52935fef1462"
-    private let baseURL = "https://newsapi.org/v2"
+    internal let apiKey = "03a08255e08b4db780fc52935fef1462"
+    internal let baseURL = "https://newsapi.org/v2"
     
     init(networkService: NetworkServiceProtocol) {
         self.networkService = networkService
@@ -24,7 +24,7 @@ class NewsAPIService: NewsAPIServiceProtocol {
         return try await networkService.request(url: url, responseType: NewsResponseDTO.self)
     }
     
-    private func buildNewsURL(query: String) throws -> URL {
+    internal func buildNewsURL(query: String) throws -> URL {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         
@@ -52,7 +52,7 @@ class NewsAPIService: NewsAPIServiceProtocol {
         return url
     }
     
-    private func buildTopHeadlinesURL(category: String?) throws -> URL {
+    internal func buildTopHeadlinesURL(category: String?) throws -> URL {
         var urlComponents = URLComponents(string: "\(baseURL)/top-headlines")!
         
         var queryItems = [
