@@ -1,4 +1,3 @@
-import Foundation
 import CoreData
 import UIKit
 
@@ -12,12 +11,13 @@ class CoreDataManager {
     }
     
     func saveArticle(_ article: Article) -> Bool {
-        if isArticleSaved(article) {
+        
+        guard !article.url.isEmpty else {
+            print("Article URL is empty")
             return false
         }
         
         guard let entity = NSEntityDescription.entity(forEntityName: "SavedArticle", in: context) else {
-            print("Не удалось найти entity SavedArticle")
             return false
         }
         
@@ -51,10 +51,10 @@ class CoreDataManager {
                 context.delete(savedArticle)
             }
             try context.save()
-            print("Статья удалена!")
+            print("Article removed!")
             return true
         } catch {
-            print("Ошибка удаления: \(error)")
+            print("Error deleting:\(error)")
             return false
         }
     }
@@ -67,7 +67,7 @@ class CoreDataManager {
             let count = try context.count(for: request)
             return count > 0
         } catch {
-            print("Ошибка проверки: \(error)")
+            print("Verification error:\(error)")
             return false
         }
     }
@@ -79,7 +79,7 @@ class CoreDataManager {
         do {
             return try context.fetch(request)
         } catch {
-            print("Ошибка загрузки: \(error)")
+            print(error)
             return []
         }
     }
